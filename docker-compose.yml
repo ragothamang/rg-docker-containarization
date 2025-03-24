@@ -1,0 +1,19 @@
+version: '3'
+services:
+  jenkins:
+    image: rg-img-sel-java-2025
+    container_name: rg-cntr-sel-java-2025
+    restart: always
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - GIT_REPO=https://github.com/ragothamang/sel-in-jenkins-docker-container-2025.git
+      - GITHUB_TOKEN=your_github_pat_here
+    build: .
+  
+volumes:
+  jenkins_home:
