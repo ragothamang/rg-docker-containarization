@@ -6,7 +6,7 @@ USER root
 
 # Install Java, Maven, Git, Curl, Wget, Unzip
 RUN apt-get update && \
-    apt-get install -y openjdk-17-jdk maven git curl wget unzip firefox-esr && \
+    apt-get install -y openjdk-17-jdk maven git curl wget unzip firefox-esr dos2unix && \
     rm -rf /var/lib/apt/lists/*
 
 # Set Java and Maven environment variables
@@ -30,7 +30,7 @@ RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
 
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /entrypoint.sh && dos2unix /entrypoint.sh
 
 # Switch to Jenkins user
 USER jenkins
