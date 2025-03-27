@@ -1,19 +1,28 @@
-version: '3'
+version: '3.8'
+
 services:
   jenkins:
     image: rg-img-sel-java-2025
-    container_name: rg-cntr-sel-java-2025
-    restart: always
+    container_name: rg-cntr
     ports:
       - "8080:8080"
       - "50000:50000"
+    environment:
+      - JENKINS_ADMIN_ID=admin
+      - JENKINS_ADMIN_PASSWORD=admin
+      - GITHUB_TOKEN=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
     volumes:
       - jenkins_home:/var/jenkins_home
-    environment:
-      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
-      - GIT_REPO=https://github.com/ragothamang/sel-in-jenkins-docker-container-2025.git
-      - GITHUB_TOKEN=your_github_pat_here
-    build: .
-  
+    restart: always
+    depends_on:
+      - mailserver
+
+  mailserver:
+    image: mailhog/mailhog
+    container_name: mailserver
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   jenkins_home:

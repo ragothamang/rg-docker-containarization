@@ -1,5 +1,13 @@
+pipeline-stage-view:latest
+docker-workflow:latest
 pipeline-model-definition
-workflow-aggregator
-git
+workflow-aggregator:latest
 email-ext
 maven-plugin
+github
+github-branch-source
+pipeline-github
+git
+git-client
+credentials
+plain-credentials
