@@ -3,6 +3,7 @@ docker-workflow:latest
 pipeline-model-definition
 workflow-aggregator:latest
 email-ext
+mailer
 maven-plugin
 github
 github-branch-source

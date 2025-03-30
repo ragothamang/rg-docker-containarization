@@ -58,6 +58,28 @@ instance.save()
 println "✅ GitHub credentials added successfully!"
 
 EOF
+
+# 📌 Configure Email Notification in Jenkins
+cat <<EOF > /var/jenkins_home/init.groovy.d/jenkins-email.groovy
+import jenkins.model.*
+import hudson.tasks.Mailer
+
+def jenkins = Jenkins.instance
+def mailer = jenkins.getExtensionList(Mailer.DescriptorImpl.class)[0]
+
+// ✅ Set SMTP Server Details
+mailer.setSmtpHost("smtp.gmail.com")
+mailer.setSmtpPort("465")
+mailer.setAuthentication("ragothamanu@gmail.com", "cfodkoxxngmurypv")
+mailer.setUseSsl(false)
+mailer.setUseTls(true)
+mailer.setReplyToAddress("ragothamanu@gmail.com")
+mailer.setCharset("UTF-8")
+mailer.save()
+
+println "✅ Email Notification Configured Successfully!"
+EOF
+
 # 🚀 Start Jenkins in the background
 exec /usr/local/bin/jenkins.sh &
 
@@ -91,14 +113,14 @@ if [ ! -f "$JENKINSFILE_PATH" ]; then
 fi
 
 echo "📌 Creating Jenkinsfile..."
-cat <<EOF > $JENKINSFILE_PATH
+cat <<'EOF' > $JENKINSFILE_PATH
 pipeline {
     agent any
 
     environment {
-        GIT_REPO = 'https://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@github.com/ragothamang/sel-in-jenkins-docker-container-2025.git'
         WORK_DIR = '/var/jenkins_home/workspace/automation-suite'
-        REPORT_PATH = "${WORK_DIR}/target/surefire-reports"
+        REPORT_PATH = "${WORK_DIR}/extent-reports"
+        TEST_REPORTS = "${WORK_DIR}/target/surefire-reports"
         RECIPIENTS = 'ragothamanu@gmail.com'
     }
 
@@ -107,7 +129,10 @@ pipeline {
             steps {
                 script {
                     echo "🔄 Cloning GitHub repository..."
-                    sh "rm -rf ${WORK_DIR} && git clone ${GIT_REPO} ${WORK_DIR}"
+                    sh """
+                    rm -rf $WORK_DIR
+                    git clone https://github.com/ragothamang/sel-in-jenkins-docker-container-2025.git $WORK_DIR
+                    """
                     echo "✅ Repository cloned successfully!"
                 }
             }
@@ -116,29 +141,62 @@ pipeline {
         stage('Build & Test') {
             steps {
                 dir(WORK_DIR) {
-                    sh 'mvn clean test'
+                    script {
+                        def result = sh(script: 'mvn clean test', returnStatus: true)
+                        if (result != 0) {
+                            error("❌ Maven tests failed. Stopping pipeline execution.")
+                        }
+                        echo "✅ Maven tests completed successfully!"
+                    }
+                }
+            }
+        }
+
+        stage('Ensure Reports Exist') {
+            steps {
+                script {
+                    if (!fileExists("${REPORT_PATH}")) {
+                        echo "⚠️ Report path missing. Copying from test reports..."
+                        sh "mkdir -p ${REPORT_PATH} && cp -r ${TEST_REPORTS}/* ${REPORT_PATH}/ || echo '⚠️ No reports found to copy!'"
+                    }
                 }
             }
         }
 
         stage('Archive Test Reports') {
             steps {
-                archiveArtifacts artifacts: '**/surefire-reports/*.xml', fingerprint: true
+                script {
+                    def reportExists = sh(script: "ls ${REPORT_PATH}/*.html 2>/dev/null | wc -l", returnStdout: true).trim()
+                    if (reportExists == '0') {
+                        echo "⚠️ No reports found! Skipping archiving."
+                    } else {
+                        echo "✅ Archiving test reports..."
+                        archiveArtifacts artifacts: "${REPORT_PATH}/extent-report.html", allowEmptyArchive: false
+                    }
+                }
             }
         }
 
         stage('Send Email Notification') {
             steps {
                 script {
-                    emailext(
-                        subject: "🔍 Selenium Test Report",
-                        body: "✅ Automation test execution completed. Please find the attached report.",
-                        recipientProviders: [[$class: 'DevelopersRecipientProvider']],
-                        to: RECIPIENTS,
-                        attachmentsPattern: "**/surefire-reports/*.xml",
-                        mimeType: 'text/html'
-                    )
-                    echo "📧 Test report emailed successfully!"
+                    def reportExists = sh(script: "ls ${REPORT_PATH}/*.html 2>/dev/null | wc -l", returnStdout: true).trim()
+                    if (reportExists == '0') {
+                        echo "⚠️ No reports found! Skipping email notification."
+                    } else {
+                        emailext(
+                            subject: "🔍 Selenium Test Report - ${currentBuild.fullDisplayName}",
+                            body: """
+                                <p>✅ Automation test execution completed.</p>
+                                <p>Build Status: <b>${currentBuild.currentResult}</b></p>
+                                <p>Click <a href="${env.BUILD_URL}">here</a> to view the full report.</p>
+                            """,
+                            to: RECIPIENTS,
+                            attachmentsPattern: "**/extent-reports/*.html",
+                            mimeType: 'text/html'
+                        )
+                        echo "📧 Test report emailed successfully!"
+                    }
                 }
             }
         }
@@ -150,10 +208,9 @@ pipeline {
         }
     }
 }
-
 EOF
-echo "✅ Jenkinsfile created successfully!"
 
+echo "✅ Jenkinsfile created successfully!"
 
 
 # 📌 Create and trigger Pipeline Job
@@ -184,6 +241,6 @@ echo "✅ Pipeline Job '$JENKINS_JOB_NAME' Created Successfully!"
 java -jar /var/jenkins_home/jenkins-cli.jar -s http://localhost:8080/ -auth admin:admin build $JENKINS_JOB_NAME
 echo "🚀 Pipeline Job '$JENKINS_JOB_NAME' Triggered Successfully!"
 
-#tail -f /dev/null
+tail -f /dev/null
 # Keep container running
 #wait

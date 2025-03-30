@@ -18,7 +18,10 @@ pipeline {
             steps {
                 script {
                     echo "🔄 Cloning GitHub repository..."
-                    sh "rm -rf ${WORK_DIR} && git clone ${GIT_REPO} ${WORK_DIR}"
+                    sh '''
+						"rm -rf /var/jenkins_home/workspace/automation-suite && 
+						git clone https://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@github.com/ragothamang/sel-in-jenkins-docker-container-2025.git /var/jenkins_home/workspace/automation-suite"						
+					'''
                     echo "✅ Repository cloned successfully!"
                 }
             }
@@ -27,14 +30,16 @@ pipeline {
         stage('Build & Test') {
             steps {
                 dir(WORK_DIR) {
-                    sh 'mvn clean test'
+                    sh '''
+						'mvn clean test'
+					'''
                 }
             }
         }
 
         stage('Archive Test Reports') {
             steps {
-                archiveArtifacts artifacts: '**/surefire-reports/*.xml', fingerprint: true
+                archiveArtifacts artifacts: '**/extent-reports/*.html', fingerprint: true
             }
         }
 
@@ -43,11 +48,11 @@ pipeline {
                 script {
                     emailext(
                         subject: "🔍 Selenium Test Report",
-                        body: "✅ Automation test execution completed. Please find the attached report.",
-                        recipientProviders: [[$class: 'DevelopersRecipientProvider']],
-                        to: RECIPIENTS,
-                        attachmentsPattern: "**/surefire-reports/*.xml",
-                        mimeType: 'text/html'
+						body: "✅ Automation test execution completed. Please find the attached report.",
+						recipientProviders: [developers(), requestor()],
+						to: RECIPIENTS,
+						attachmentsPattern: "**/extent-reports/*.html",
+						mimeType: 'text/html'
                     )
                     echo "📧 Test report emailed successfully!"
                 }
